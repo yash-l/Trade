@@ -17,12 +17,14 @@ class Config:
         5PAISA_RESPONSE_URL=http://127.0.0.1:5000/callback/5paisa
         ,
         "REDIS_URL"
-        DATABASE_URL=postgresql://localhost/hydra_db
+        REDIS_URL=redis://127.0.0.1:6379/0
         ,
         
         "TOKEN_ENCRYPTION_KEY"
         HYDRA_TOKEN_ENCRYPTION_KEY=omFuXzjGba5TNe9eHfvKDZGp-pplrxnVbYSfG5hixpw=,
         "DATABASE_URL"
+        DATABASE_URL=postgresql://localhost/hydra_db
+        
     ]
     
     API_KEY = os.environ.get("5PAISA_VENDOR_KEY")
