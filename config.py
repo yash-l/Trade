@@ -7,9 +7,12 @@ class Config:
     ENVIRONMENT = os.environ.get("FLASK_ENV", "production")
     
     REQUIRED_VARS = [
-        "API_KEY",
-        "ENCRYPTION_KEY",
-        "USER_ID",
+        "API_KEY"
+        5PAISA_VENDOR_KEY=kiFauE4G3aPebavZqzaCDXL5ZqLWpcYC,
+        "ENCRYPTION_KEY"
+        5PAISA_ENCRYPTION_KEY=Z7w27HD7OGCobFo48ACHhoQEjqtXP6ra,
+        "USER_ID"
+        5PAISA_USER_ID=Xl3r3TUSHdF,
         "CALLBACK_URL",
         "REDIS_URL",
         "TOKEN_ENCRYPTION_KEY",
