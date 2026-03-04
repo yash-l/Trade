@@ -7,13 +7,24 @@ class Config:
     ENVIRONMENT = os.environ.get("FLASK_ENV", "production")
     
     REQUIRED_VARS = [
-        "API_KEY",
-        "ENCRYPTION_KEY",
-        "USER_ID",
-        "CALLBACK_URL",
-        "REDIS_URL",
-        "TOKEN_ENCRYPTION_KEY",
+        "API_KEY"
+        5PAISA_VENDOR_KEY=kiFauE4G3aPebavZqzaCDXL5ZqLWpcYC,
+        "ENCRYPTION_KEY"
+        5PAISA_ENCRYPTION_KEY=Z7w27HD7OGCobFo48ACHhoQEjqtXP6ra,
+        "USER_ID"
+        5PAISA_USER_ID=Xl3r3TUSHdF,
+        "CALLBACK_URL"
+        5PAISA_RESPONSE_URL=http://127.0.0.1:5000/callback/5paisa
+        ,
+        "REDIS_URL"
+        REDIS_URL=redis://127.0.0.1:6379/0
+        ,
+        
+        "TOKEN_ENCRYPTION_KEY"
+        HYDRA_TOKEN_ENCRYPTION_KEY=omFuXzjGba5TNe9eHfvKDZGp-pplrxnVbYSfG5hixpw=,
         "DATABASE_URL"
+        DATABASE_URL=postgresql://localhost/hydra_db
+        
     ]
     
     API_KEY = os.environ.get("5PAISA_VENDOR_KEY")
