@@ -1,144 +1,198 @@
-cat << 'EOF' > position_sizer.py
 import math
 from enum import Enum
 from dataclasses import dataclass
-from typing import Optional
+
 
 class TradeDirection(Enum):
     LONG = "LONG"
     SHORT = "SHORT"
+
 
 @dataclass
 class TradeResult:
     status: str
     reason: str = ""
     trade_type: str = ""
-    shares: int = 0
-    entry: float = 0.0
-    stop_loss: float = 0.0
-    target: float = 0.0
+    lots: int = 0
+    qty: int = 0
+    entry_premium: float = 0.0
+    stop_loss_premium: float = 0.0
+    target_premium: float = 0.0
     capital_required: float = 0.0
     actual_risk: float = 0.0
-    risk_per_share: float = 0.0
-    r_multiple_target: float = 0.0
-    net_reward_potential: float = 0.0
     effective_rr: float = 0.0
 
+
 class PositionSizer:
+    """
+    HYDRA FINAL FORM
+    Deterministic Kelly-Optimized Compounding Engine
+    Fully hardened for 15K → 50K geometric growth
+    """
+
     def __init__(
-        self, 
-        available_capital: float, 
-        max_risk_pct: float = 0.01, 
-        brokerage_fees: float = 55.0, 
-        rr_ratio: float = 2.0, 
-        max_stop_pct: float = 0.20,
-        min_effective_rr: float = 1.2,
-        max_price_limit: float = 1_000_000.0
+        self,
+        current_capital: float = 15000.0,
+        brokerage_fees: float = 55.0,
+        win_rate_estimate: float = 0.52,
+        daily_drawdown_pct: float = 0.0,
+        consecutive_losses: int = 0,
+        volatility_regime: float = 1.0,
+        gamma_risk_mode: bool = False,
+        session_hour: int = 10
     ):
-        self.available_capital = available_capital
-        self.max_risk_pct = max_risk_pct
-        self.brokerage_fees = brokerage_fees
-        self.rr_ratio = rr_ratio
-        self.max_stop_pct = max_stop_pct
-        self.min_effective_rr = min_effective_rr
-        self.max_price_limit = max_price_limit
+        self.capital = max(current_capital, 0.0)
+        self.fees = max(brokerage_fees, 0.0)
+
+        self.win_rate = min(max(win_rate_estimate, 0.30), 0.75)
+        self.daily_dd = daily_drawdown_pct
+        self.loss_streak = max(consecutive_losses, 0)
+        self.vol_regime = max(volatility_regime, 0.5)
+        self.gamma_risk_mode = gamma_risk_mode
+        self.session_hour = session_hour
+
+        self.base_rr = 2.5
+        self.min_rr = 1.30
+
+    # -----------------------------------------------------
+
+    def _kelly_fraction(self) -> float:
+        """
+        Fractional Kelly with hard cap.
+        Prevents blow-up from edge overestimation.
+        """
+        b = self.base_rr
+        p = self.win_rate
+        q = 1 - p
+
+        raw_kelly = ((b * p) - q) / b
+
+        if raw_kelly <= 0:
+            return 0.02  # minimum survival risk
+
+        # 50% Kelly for stability
+        fractional = raw_kelly * 0.5
+
+        return min(max(fractional, 0.02), 0.18)
+
+    # -----------------------------------------------------
+
+    def _dynamic_risk_pct(self, ai_conf: float) -> float:
+        kelly = self._kelly_fraction()
+
+        # Confidence scaling
+        ai_factor = min(1.4, max(0.6, ai_conf))
+        risk = kelly * ai_factor
+
+        # Volatility compression
+        risk /= self.vol_regime
+
+        # Gamma compression
+        if self.gamma_risk_mode:
+            risk *= 0.6
+
+        # Daily drawdown guard
+        if self.daily_dd <= -0.05:
+            risk *= 0.5
+
+        # Loss streak compression
+        if self.loss_streak == 2:
+            risk *= 0.6
+        elif self.loss_streak >= 3:
+            risk *= 0.4
+
+        # Liquidity window boost
+        if 9 <= self.session_hour <= 11:
+            risk *= 1.10
+
+        # Hard risk boundary
+        return min(max(risk, 0.01), 0.10)
+
+    # -----------------------------------------------------
 
     def calculate_trade(
-        self, 
-        entry_price: float, 
-        stop_loss: float, 
+        self,
+        premium: float,
+        stop_loss: float,
+        lot_size: int,
         trade_type: TradeDirection = TradeDirection.LONG,
-        brokerage_override: Optional[float] = None,
-        rr_override: Optional[float] = None,
-        slippage_pct: float = 0.001
+        ai_confidence: float = 1.0,
+        slippage_pct: float = 0.02
     ) -> TradeResult:
-        
-        # Resolve overrides first
-        current_brokerage = brokerage_override if brokerage_override is not None else self.brokerage_fees
-        current_rr = rr_override if rr_override is not None else self.rr_ratio
 
-        # --- 1. SYSTEM SURVIVAL GUARDS ---
-        if (self.available_capital * self.max_risk_pct) <= current_brokerage:
-            return TradeResult(status="REJECTED", reason=f"Capital exhaustion: Allowed 1% risk cannot cover ₹{current_brokerage} fees.")
+        # --- Input Validation ---
+        if premium <= 0 or stop_loss <= 0 or lot_size <= 0:
+            return TradeResult(status="REJECTED", reason="Invalid inputs")
 
-        # --- 2. INPUT SANITY CHECKS ---
-        if current_brokerage < 0 or slippage_pct < 0:
-            return TradeResult(status="REJECTED", reason="Invalid parameters (negative fees or slippage).")
-        if entry_price <= 0 or stop_loss <= 0:
-            return TradeResult(status="REJECTED", reason="Prices must be > 0.")
-        if entry_price > self.max_price_limit:
-            return TradeResult(status="REJECTED", reason=f"Entry price exceeds system limit ({self.max_price_limit}).")
+        if self.capital <= 0:
+            return TradeResult(status="REJECTED", reason="No capital")
 
-        # --- 3. RISK ALLOWANCE ---
-        max_total_risk = self.available_capital * self.max_risk_pct 
-        chart_risk_allowed = max_total_risk - current_brokerage
-        
-        if chart_risk_allowed <= 0:
-            return TradeResult(status="REJECTED", reason=f"Brokerage (₹{current_brokerage}) exceeds allowed risk.")
-            
-        # --- 4. STRUCTURAL CHECKS ---
-        base_stop_distance = abs(entry_price - stop_loss)
-        if base_stop_distance == 0:
-            return TradeResult(status="REJECTED", reason="Stop loss cannot equal entry price.")
-        if (base_stop_distance / entry_price) > self.max_stop_pct:
-            return TradeResult(status="REJECTED", reason=f"Stop distance > {self.max_stop_pct * 100}% of price. Setup is too wide.")
+        stop_distance = abs(premium - stop_loss)
+        if stop_distance <= 0:
+            return TradeResult(status="REJECTED", reason="Zero stop")
 
-        if trade_type == TradeDirection.LONG and stop_loss >= entry_price:
-            return TradeResult(status="REJECTED", reason="Invalid LONG: Stop loss must be below entry.")
-        if trade_type == TradeDirection.SHORT and stop_loss <= entry_price:
-            return TradeResult(status="REJECTED", reason="Invalid SHORT: Stop loss must be above entry.")
+        # --- Risk Budget ---
+        risk_pct = self._dynamic_risk_pct(ai_confidence)
+        max_risk_inr = self.capital * risk_pct
 
-        # --- 5. POSITION SIZING (With Conservative Slippage Bias) ---
-        effective_stop_distance = base_stop_distance * (1 + slippage_pct)
+        round_trip_friction = self.fees * 2
+        usable_risk = max_risk_inr - round_trip_friction
 
-        risk_based_shares = math.floor(chart_risk_allowed / effective_stop_distance)
-        capital_based_shares = math.floor(self.available_capital / entry_price)
-        final_shares = min(risk_based_shares, capital_based_shares)
-        
-        if final_shares <= 0:
-            return TradeResult(status="REJECTED", reason="Risk too tight or stock too expensive after slippage.")
-            
-        capital_required = final_shares * entry_price
-        if capital_required > self.available_capital:
-            return TradeResult(status="REJECTED", reason="Insufficient available capital (Zero leverage rule).")
-            
-        actual_risk_taken = round((final_shares * effective_stop_distance) + current_brokerage, 2)
-        
-        if actual_risk_taken > round(max_total_risk, 2):
-            return TradeResult(status="REJECTED", reason="Risk exceeded after float rounding.")
-            
-        # --- 6. TARGET & EXPECTANCY CHECKS ---
-        target_distance = base_stop_distance * current_rr
-        target_price = entry_price + target_distance if trade_type == TradeDirection.LONG else entry_price - target_distance
-        
-        net_reward_potential = round((final_shares * target_distance) - current_brokerage, 2)
-        
-        # Float noise immunity via 4-decimal rounding
-        effective_rr = round(net_reward_potential / actual_risk_taken, 4)
-        if effective_rr < self.min_effective_rr:  
-            return TradeResult(status="REJECTED", reason=f"Effective RR ({effective_rr}) below policy minimum ({self.min_effective_rr}).")
-        
+        if usable_risk <= 0:
+            return TradeResult(status="REJECTED", reason="Friction block")
+
+        # --- Risk Per Lot ---
+        effective_stop = stop_distance * (1 + slippage_pct)
+        risk_per_lot = effective_stop * lot_size
+
+        if risk_per_lot <= 0:
+            return TradeResult(status="REJECTED", reason="Invalid lot risk")
+
+        lots_by_risk = math.floor(usable_risk / risk_per_lot)
+
+        # --- Hard Capital Exposure Cap ---
+        exposure_cap = self.capital * 0.55
+        lots_by_margin = math.floor(exposure_cap / (premium * lot_size))
+
+        final_lots = min(lots_by_risk, lots_by_margin)
+
+        if final_lots < 1:
+            return TradeResult(status="REJECTED", reason="Capital insufficient")
+
+        # --- Final Calculations ---
+        qty = final_lots * lot_size
+        capital_required = qty * premium
+
+        actual_risk = round((final_lots * risk_per_lot) + round_trip_friction, 2)
+
+        target_distance = stop_distance * self.base_rr
+
+        target_premium = (
+            premium + target_distance
+            if trade_type == TradeDirection.LONG
+            else premium - target_distance
+        )
+
+        gross_reward = final_lots * target_distance * lot_size
+        net_reward = gross_reward - round_trip_friction
+
+        if actual_risk <= 0:
+            return TradeResult(status="REJECTED", reason="Risk invalid")
+
+        effective_rr = round(net_reward / actual_risk, 4)
+
+        if effective_rr < self.min_rr:
+            return TradeResult(status="REJECTED", reason="RR too low")
+
         return TradeResult(
             status="APPROVED",
             trade_type=trade_type.value,
-            shares=final_shares,
-            entry=entry_price,
-            stop_loss=stop_loss,
-            target=round(target_price, 2),
+            lots=final_lots,
+            qty=qty,
+            entry_premium=premium,
+            stop_loss_premium=stop_loss,
+            target_premium=round(target_premium, 2),
             capital_required=round(capital_required, 2),
-            actual_risk=actual_risk_taken,
-            risk_per_share=round(effective_stop_distance, 2),
-            r_multiple_target=current_rr,
-            net_reward_potential=net_reward_potential,
+            actual_risk=actual_risk,
             effective_rr=effective_rr
         )
-
-# --- TEST EXECUTION ---
-if __name__ == "__main__":
-    sizer = PositionSizer(available_capital=15000.0)
-    print("--- HYDRA FNF POSITION SIZER FINALIZED ---")
-    
-    print("\n[+] Testing Valid Setup (ITC):")
-    res1 = sizer.calculate_trade(entry_price=800, stop_loss=790)
-    print(f"Status: {res1.status} | Shares: {res1.shares} | Effective RR: {res1.effective_rr}")
-EOF
