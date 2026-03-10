@@ -1,28 +1,26 @@
 import subprocess
 import sys
+import os
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 modules = [
-    "../core/module1_market_feed.py",
-    "../core/module2_candle_builder.py",
-    "../core/module3_liquidity_engine.py",
-    "../core/module4_strike_selector.py",
-    "../core/module5_execution_router.py",
-    "../core/module6_position_manager.py",
-    "../core/module7_master_control.py"
+    "module1.py",
+    "module2.py",
+    "module3.py",
+    "module4.py",
+    "module5.py",
+    "module6.py",
+    "module7.py"
 ]
 
 processes = []
 
-try:
-    for module in modules:
-        print(f"Starting {module}")
-        p = subprocess.Popen([sys.executable, module])
-        processes.append(p)
+for module in modules:
+    path = os.path.join(BASE_DIR, "core", module)
+    print(f"Starting {path}")
+    p = subprocess.Popen([sys.executable, path])
+    processes.append(p)
 
-    for p in processes:
-        p.wait()
-
-except KeyboardInterrupt:
-    print("Stopping Hydra...")
-    for p in processes:
-        p.terminate()
+for p in processes:
+    p.wait()
