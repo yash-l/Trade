@@ -1,0 +1,10 @@
+<resources>
+    <color name="hydra_bg">#090D14</color>
+    <color name="hydra_panel">#111722</color>
+    <color name="hydra_panel2">#151C29</color>
+    <color name="hydra_text">#F3F6FA</color>
+    <color name="hydra_muted">#8994A6</color>
+    <color name="hydra_accent">#45D7A7</color>
+    <color name="hydra_warn">#F3B562</color>
+    <color name="hydra_red">#FF6B78</color>
+</resources>

@@ -1,0 +1,7 @@
+<resources>
+    <style name="Theme.Hydra" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:fontFamily">sans</item><item name="android:windowLightStatusBar">false</item>
+        <item name="android:statusBarColor">@color/hydra_bg</item><item name="android:navigationBarColor">@color/hydra_bg</item>
+        <item name="android:colorAccent">@color/hydra_accent</item><item name="android:windowBackground">@color/hydra_bg</item>
+    </style>
+</resources>
