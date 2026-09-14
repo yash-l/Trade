@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hydra-omega-apex"
+version = "2.2.2"
+description = "HYDRA Omega-APEX paper-first NIFTY options research/trading engine"
+requires-python = ">=3.11"
+dependencies = [
+  "starlette>=0.50,<1",
+  "uvicorn>=0.48,<1",
+  "httpx>=0.28,<1",
+  "websockets>=16,<17",
+  "python-dotenv>=1.1,<2",
+  "tzdata>=2025.2,<2027",
+]
+
+[tool.setuptools.packages.find]
+include = ["hydra*"]

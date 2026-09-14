@@ -1,0 +1,23 @@
+{
+  "currency": "INR",
+  "note": "Effective-dated option charges. Historical backtests fail closed if no rate applies.",
+  "schedules": [
+    {
+      "effective_from": "2026-04-01",
+      "effective_to": null,
+      "brokerage_per_executed_order": 20.0,
+      "nse_transaction_rate": 0.0003552,
+      "nse_ipft_rate": 1e-09,
+      "sebi_rate": 1e-06,
+      "stt_sell_premium_rate": 0.0015,
+      "stamp_buy_rate": 3e-05,
+      "gst_rate": 0.18,
+      "gst_taxable_components": [
+        "brokerage",
+        "nse_transaction",
+        "nse_ipft",
+        "sebi"
+      ]
+    }
+  ]
+}
