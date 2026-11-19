@@ -1,9 +1,36 @@
-.env
+# Python build and local runtime artifacts
 __pycache__/
-*.pyc
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+.coverage
+htmlcov/
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
 
-.env
-__pycache__/
-*.pyc
+# Device-local files
+.cache/
+.config/termux/
+.gitconfig
+.ssh/
+.bash_history
+.python_history
+*.session
+*.session-journal
+local.properties
+.gradle/
+*.apk
+*.jks
+*.keystore
 test.py
 dump.rdb
